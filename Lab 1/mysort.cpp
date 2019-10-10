@@ -27,6 +27,19 @@ mutex part_lock;
 bool fj=1;
 bool bucket=0;
 
+
+int getMax(int a[], int n)
+{
+  int max = 0;
+  for(int i=0;i<n;i++)
+    if(a[i]>max)
+      max = a[i];
+
+  return max;
+}
+
+
+
 // merging two parts
 void merge( int left, int mid, int right)
 {
@@ -131,19 +144,6 @@ void* merge_sort(void* arg)
   }
 
 }
-
-
-int getMax(int a[], int n)
-{
-  int max = 0;
-  for(int i=0;i<n;i++)
-    if(a[i]>max)
-      max = a[i];
-
-  return max;
-}
-
-
 
 void bucket_sort(int start,int n)
 {
