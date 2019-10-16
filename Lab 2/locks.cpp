@@ -48,43 +48,45 @@ void (*funcs[NUM_FUNCS])(int)  = {
 };
 
 
-
-atomic<int> count;
-atomic<int> sense;
-int N = NUM_THREADS;
-
-
-
-void sense_wait()
+class Barrier
 {
-  cout<<"here";
-  // thread_local bool my_sense=0;
-  // if(my_sense==0)
-  // {
-  //   my_sense = 1;
-  // }
-  // else
-  // {
-  //   my_sense = 0;
-  // }
-  // count.fetch_add(1);
-  // int cnt_cpy = count;
-  // cout<<"cnt cpy"<<cnt_cpy;
-  // if(cnt_cpy == N)
-  // {
-  //   //cnt.store(0,RELAXED);
-  //   count.store(0,std::memory_order_relaxed);
-  //   sense.store(my_sense);
-  // }
-  // else
-  // {
-  //   while(sense.load()!=my_sense)
-  //   {}
-  // }
+public:
+  atomic<int> count;
+  atomic<int> sense;
+  int N = NUM_THREADS;
+
+  void wait(void);
+
+};
+
+void Barrier::wait()
+{
+  thread_local bool my_sense=0;
+  if(my_sense==0)
+  {
+    my_sense = 1;
+  }
+  else
+  {
+    my_sense = 0;
+  }
+  count.fetch_add(1);
+  int cnt_cpy = count;
+  if(cnt_cpy == N)
+  {
+    //cnt.store(0,RELAXED);
+    count.store(0,std::memory_order_relaxed);
+    sense.store(my_sense);
+  }
+  else
+  {
+    while(sense.load()!=my_sense)
+    {}
+  }
 }
 
 
-
+Barrier bar_sense;
 
 void global_init(){
 	threads = (pthread_t*) malloc(NUM_THREADS*sizeof(pthread_t));
@@ -100,8 +102,9 @@ void global_init(){
 
 
 
-  count = 0;
-  sense = 0;
+  bar_sense.count = 0;
+  bar_sense.sense = 0;
+  bar_sense.N = NUM_THREADS;
 
   next_num = 0;
   now_serving = 0;
@@ -252,14 +255,11 @@ void cnt_bar_sense(int tid)
   tid--;
   for(int i=0; i<NUM_THREADS*ITERATIONS; i++)
   {
-    cout<<"aaya"<<endl;
     if(i%NUM_THREADS==tid)
     {
       counter++;
     }
-
-    sense_wait();
-    //pthread_barrier_wait(&bar);
+    bar_sense.wait();
   }
 }
 
