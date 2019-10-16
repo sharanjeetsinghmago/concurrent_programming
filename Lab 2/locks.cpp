@@ -11,49 +11,101 @@ size_t* args;
 size_t NUM_THREADS = 7 ;
 int TEST_NUM = 0;
 int ITERATIONS = 10;
+int counter;
 
+
+pthread_mutex_t lock;
 atomic<bool> flag_tas;
-atomic<bool> flag_tatas;
+
+pthread_barrier_t bar;
+
+atomic<int> next_num;
+atomic<int> now_serving;
 
 void empty(int);
 void print(int);
-// void cnt_lock(int);
-// void cnt_tas_lock(int);
-// void cnt_test_and_tas_lock(int);
-// void cnt_fai(int);
-// void cnt_cas(int);
-// void cnt_array(int);
-// void cnt_array_padded(int);
-// void cnt_thread_local(int);
-// void cnt_stack(int);
 
-const int NUM_FUNCS = 2;
+void cnt_tas_lock(int);
+void cnt_ttas_lock(int);
+void cnt_ticket_lock(int);
+void cnt_mcs_lock(int);
+void cnt_pthread_lock(int);
+
+void cnt_bar_sense(int);
+void cnt_bar_pthread(int);
+
+const int NUM_FUNCS = 9;
 void (*funcs[NUM_FUNCS])(int)  = {
 	empty,
+  cnt_tas_lock,
+	cnt_ttas_lock,
+  cnt_ticket_lock,
+	cnt_mcs_lock,
+	cnt_pthread_lock,
+	cnt_bar_sense,
+	cnt_bar_pthread,
   print
-	// print,
-	// cnt_lock,
-	// cnt_tas_lock,
-	// cnt_test_and_tas_lock,
-	// cnt_fai,
-	// cnt_cas,
-	// cnt_array,
-	// cnt_array_padded,
-	// cnt_thread_local,
-	// cnt_stack
 };
+
+
+
+atomic<int> count;
+atomic<int> sense;
+int N = NUM_THREADS;
+
+
+
+void sense_wait()
+{
+  cout<<"here";
+  // thread_local bool my_sense=0;
+  // if(my_sense==0)
+  // {
+  //   my_sense = 1;
+  // }
+  // else
+  // {
+  //   my_sense = 0;
+  // }
+  // count.fetch_add(1);
+  // int cnt_cpy = count;
+  // cout<<"cnt cpy"<<cnt_cpy;
+  // if(cnt_cpy == N)
+  // {
+  //   //cnt.store(0,RELAXED);
+  //   count.store(0,std::memory_order_relaxed);
+  //   sense.store(my_sense);
+  // }
+  // else
+  // {
+  //   while(sense.load()!=my_sense)
+  //   {}
+  // }
+}
+
+
+
 
 void global_init(){
 	threads = (pthread_t*) malloc(NUM_THREADS*sizeof(pthread_t));
 	args = (size_t*) malloc(NUM_THREADS*sizeof(size_t));
-	// pthread_barrier_init(&bar, NULL, NUM_THREADS);
-	// counter = 0;
+	pthread_barrier_init(&bar, NULL, NUM_THREADS);
+	counter = 0;
 	// atomic_counter.store(0);
   //
-	// pthread_mutex_init(&lock,NULL);
+	pthread_mutex_init(&lock,NULL);
 	// tas_lock.store(false);
 	// array = (int*) malloc(NUM_THREADS*sizeof(int));
 	// array_padded = (padded_int*) malloc(NUM_THREADS*sizeof(padded_int));
+
+
+
+  count = 0;
+  sense = 0;
+
+  next_num = 0;
+  now_serving = 0;
+
 }
 
 
@@ -72,35 +124,160 @@ void global_cleanup(){
 
 
 
-void empty(int tid){}
+// LOCKS
 
-void print(int tid){
+//tas
+void tas_lock()
+{
+  bool expected, changed;
+  do{
+    expected = false;
+    changed = true;
+  }while(!flag_tas.compare_exchange_strong(expected,changed));
+}
+
+void tas_unlock()
+{
+  flag_tas.store(false);
+}
+
+
+//ttas
+void ttas_lock()
+{
+  bool expected, changed;
+  do{
+    expected = false;
+    changed = true;
+  }while(flag_tas.load()==true || !flag_tas.compare_exchange_strong(expected,changed));
+}
+
+void ttas_unlock()
+{
+  flag_tas.store(false);
+}
+
+//ticket
+
+void ticket_lock()
+{
+  int my_num = next_num.fetch_add(1);
+  while(now_serving.load() != my_num)
+  {}
+}
+
+void ticket_unlock()
+{
+  now_serving.fetch_add(1);
+}
+
+
+void empty(int tid)
+{
+    cout<<"In the empty function";
+}
+
+void print(int tid)
+{
 	printf("Thread %d reporting for duty.\n",tid);
 }
 
-//tas
-bool tas()
+void cnt_tas_lock(int)
 {
-  if(flag_tas == false)
+  for(int i=0; i<ITERATIONS; i++)
   {
-    flag_tas = true;
-    return true;
-  }
-  else
-  {
-    return false;
+    tas_lock();
+    //cout<<"\n Locked";
+    //cout<<"\n Incrementing counter from "<<tid;
+    counter++;
+    //cout<<"\n Unlocked";
+    tas_unlock();
   }
 }
 
-//
-// //tatas
-// void lock()
-// {
-//   while(flag.load()==true || flag.tas() == false)
-//   {}
-// }
-//
-// void unlock()
+void cnt_ttas_lock(int)
+{
+  for(int i=0; i<ITERATIONS; i++)
+  {
+    ttas_lock();
+    //cout<<"\n Locked";
+    //cout<<"\n Incrementing counter from "<<tid;
+    counter++;
+    //cout<<"\n Unlocked";
+    ttas_unlock();
+  }
+}
+
+void cnt_ticket_lock(int)
+{
+  for(int i=0; i<ITERATIONS; i++)
+  {
+    ticket_lock();
+    //cout<<"\n Locked";
+    //cout<<"\n Incrementing counter from "<<tid;
+    counter++;
+    //cout<<"\n Unlocked";
+    ticket_unlock();
+  }
+}
+
+void cnt_mcs_lock(int)
+{
+  for(int i=0; i<ITERATIONS; i++)
+  {
+
+    //cout<<"\n Locked";
+    //cout<<"\n Incrementing counter from "<<tid;
+    counter++;
+    //cout<<"\n Unlocked";
+
+  }
+}
+
+void cnt_pthread_lock(int tid)
+{
+  for(int i=0; i<ITERATIONS; i++)
+  {
+    pthread_mutex_lock(&lock);
+    //cout<<"\n Locked";
+    //cout<<"\n Incrementing counter from "<<tid;
+    counter++;
+    //cout<<"\n Unlocked";
+    pthread_mutex_unlock(&lock);
+  }
+}
+
+void cnt_bar_sense(int tid)
+{
+  tid--;
+  for(int i=0; i<NUM_THREADS*ITERATIONS; i++)
+  {
+    cout<<"aaya"<<endl;
+    if(i%NUM_THREADS==tid)
+    {
+      counter++;
+    }
+
+    sense_wait();
+    //pthread_barrier_wait(&bar);
+  }
+}
+
+void cnt_bar_pthread(int tid)
+{
+  tid--;
+  for(int i=0; i<NUM_THREADS*ITERATIONS; i++)
+  {
+    if(i%NUM_THREADS==tid)
+    {
+      counter++;
+    }
+    pthread_barrier_wait(&bar);
+  }
+}
+
+
+
 
 void* thread_main(void* args)
 {
@@ -108,10 +285,8 @@ void* thread_main(void* args)
 
   void (*test)(int) = funcs[TEST_NUM];
 
-  cout<<"Hello World "<<tid<<endl;
-
-
-
+//  cout<<"Hello World "<<tid<<endl;
+  test(tid);
 }
 
 int main(int argc, char **argv)
@@ -162,33 +337,51 @@ int main(int argc, char **argv)
       TEST_NUM = 1;
     }
 
-    if(strcmp(argv[i],"--alg=ttas") == 0)
+    if(strcmp(argv[i],"--lock=ttas") == 0)
     {
       TEST_NUM = 2;
     }
 
-    if(strcmp(argv[i],"--alg=mcs") == 0)
+    if(strcmp(argv[i],"--lock=ticket") == 0)
     {
       TEST_NUM = 3;
     }
 
-    if(strcmp(argv[i],"--alg=pthread") == 0)
+    if(strcmp(argv[i],"--lock=mcs") == 0)
     {
       TEST_NUM = 4;
     }
 
-    if(strcmp(argv[i],"--bar=sense") == 0)
+    if(strcmp(argv[i],"--lock=pthread") == 0)
     {
       TEST_NUM = 5;
     }
 
-    if(strcmp(argv[i],"--bar=pthread") == 0)
+    if(strcmp(argv[i],"--bar=sense") == 0)
     {
       TEST_NUM = 6;
     }
+
+    if(strcmp(argv[i],"--bar=pthread") == 0)
+    {
+      TEST_NUM = 7;
+    }
+
+    if(strcmp(argv[i],"--empty") == 0)
+    {
+      TEST_NUM = 0;
+    }
+
+    if(strcmp(argv[i],"--print") == 0)
+    {
+      TEST_NUM = 8;
+    }
   }
 
-
+  cout<<"\n Threads : "<<NUM_THREADS;
+  cout<<"\n Iterations : "<<ITERATIONS;
+  cout<<"\n Lock : "<<TEST_NUM;
+  cout<<endl;
 
 
   global_init();
@@ -201,5 +394,12 @@ int main(int argc, char **argv)
 
   i=1;
   thread_main(&i);
+
+  for (int i=1; i<NUM_THREADS; i++)
+  {
+    pthread_join(threads[i], NULL);
+  }
+
+  cout<<"\n Counter = "<<counter<<endl;
 
 }
