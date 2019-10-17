@@ -48,6 +48,65 @@ void (*funcs[NUM_FUNCS])(int)  = {
 };
 
 
+class Node
+{
+public:
+  atomic<Node*> next;
+  atomic<bool> wait;
+};
+
+atomic<Node*> tail{NULL};
+
+class MCSLock
+{
+public:
+
+
+  void acquire(Node*);
+  void release(Node*);
+
+};
+
+void MCSLock::acquire(Node* myNode)
+{
+  Node* oldTail = tail.load();
+  myNode->next.store(NULL);
+  while(!tail.compare_exchange_strong(oldTail,myNode))
+  {
+    oldTail = tail.load();
+  }
+
+  // if oldTail== NULL, we’ve
+  // acquired the lock
+  // otherwise, wait for it
+
+  if(oldTail != NULL)
+  {
+    myNode->wait.store(true);
+    oldTail->next.store(myNode);
+    while( myNode->wait.load()){}
+  }
+}
+
+void MCSLock::release(Node* myNode)
+{
+  Node* temp_node = myNode;
+  if(tail.compare_exchange_strong(temp_node, NULL))
+  {
+    // no one is waiting, and we just
+    // freed the lock
+  }
+  else
+  {
+    // hand lock to next waiting thread
+    while(myNode->next.load() == NULL) {}
+    myNode->next.load()->wait.store(false);
+  }
+}
+
+MCSLock mcs_lock;
+
+
 class Barrier
 {
 public:
@@ -224,16 +283,19 @@ void cnt_ticket_lock(int)
   }
 }
 
-void cnt_mcs_lock(int)
+void cnt_mcs_lock(int tid)
 {
+
   for(int i=0; i<ITERATIONS; i++)
   {
-
+    Node* myNode = new(Node);
+    mcs_lock.acquire(myNode);
     //cout<<"\n Locked";
     //cout<<"\n Incrementing counter from "<<tid;
     counter++;
     //cout<<"\n Unlocked";
-
+    mcs_lock.release(myNode);
+    free(myNode);
   }
 }
 
