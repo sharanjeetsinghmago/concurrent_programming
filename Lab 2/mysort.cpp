@@ -563,6 +563,8 @@ int main(int argc, char **argv)
   cout << "Time taken merging: " << (t4 - t3) /
       (double)CLOCKS_PER_SEC << endl;
 
+  cout<<endl;    
+
   cout << "Time taken total: " << (t4 - t1) /
       (double)CLOCKS_PER_SEC << endl;
 

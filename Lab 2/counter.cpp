@@ -355,6 +355,10 @@ int main(int argc, char **argv)
 {
   size_t i;
 
+  char* out_file;
+
+  clock_t t1,t2;
+
 
 // checking for inputs in arguments
   for (i = 0; i < argc; i++)
@@ -371,7 +375,7 @@ int main(int argc, char **argv)
     {
       if(strcmp(argv[i],"-o") == 0)
       {
-        //out_file = argv[i+1];
+        out_file = argv[i+1];
         i++;
       }
     }
@@ -446,6 +450,8 @@ int main(int argc, char **argv)
   cout<<endl;
 
 
+  t1 = clock();
+
   global_init();
 
   for( i=1; i < NUM_THREADS; i++)
@@ -462,6 +468,19 @@ int main(int argc, char **argv)
     pthread_join(threads[i], NULL);
   }
 
+  t2 = clock();
+
+  FILE *f;
+
+  f = fopen(out_file, "w");
+
+  fprintf(f, "%d\n", counter );
+
+  fclose(f);
+
   cout<<"\n Counter = "<<counter<<endl;
+
+  cout << "Time taken total: " << (t2 - t1) /
+      (double)CLOCKS_PER_SEC << endl;
 
 }
