@@ -7,13 +7,12 @@
 #include <set>
 #include <cmath>
 #include <mutex>
-#include <atomic>
 
 using namespace std;
 
 int part=0;
 
-int a[200000];
+int a[500000];
 
 vector<multiset<int>> b;
 
@@ -21,132 +20,18 @@ int size = 40;
 
 int num_threads = 6;
 
-int TEST_NUM = 0;
-
 mutex insert_lock;
 
 mutex part_lock;
-
-atomic<bool> flag_tas;
-
-atomic<int> next_num;
-atomic<int> now_serving;
 
 bool fj=1;
 bool bucket=0;
 
 
-
-class Node
-{
-public:
-  atomic<Node*> next;
-  atomic<bool> wait;
-};
-
-atomic<Node*> tail{NULL};
-
-class MCSLock
-{
-public:
-
-
-  void acquire(Node*);
-  void release(Node*);
-
-};
-
-void MCSLock::acquire(Node* myNode)
-{
-  Node* oldTail = tail.load();
-  myNode->next.store(NULL);
-  while(!tail.compare_exchange_strong(oldTail,myNode))
-  {
-    oldTail = tail.load();
-  }
-
-  // if oldTail== NULL, we’ve
-  // acquired the lock
-  // otherwise, wait for it
-
-  if(oldTail != NULL)
-  {
-    myNode->wait.store(true);
-    oldTail->next.store(myNode);
-    while( myNode->wait.load()){}
-  }
-}
-
-void MCSLock::release(Node* myNode)
-{
-  Node* temp_node = myNode;
-  if(tail.compare_exchange_strong(temp_node, NULL))
-  {
-    // no one is waiting, and we just
-    // freed the lock
-  }
-  else
-  {
-    // hand lock to next waiting thread
-    while(myNode->next.load() == NULL) {}
-    myNode->next.load()->wait.store(false);
-  }
-}
-
-MCSLock mcs_lock;
-
-
-// LOCKS
-
-//tas
-void tas_lock()
-{
-  bool expected, changed;
-  do{
-    expected = false;
-    changed = true;
-  }while(!flag_tas.compare_exchange_strong(expected,changed));
-}
-
-void tas_unlock()
-{
-  flag_tas.store(false);
-}
-
-
-//ttas
-void ttas_lock()
-{
-  bool expected, changed;
-  do{
-    expected = false;
-    changed = true;
-  }while(flag_tas.load()==true || !flag_tas.compare_exchange_strong(expected,changed));
-}
-
-void ttas_unlock()
-{
-  flag_tas.store(false);
-}
-
-//ticket
-
-void ticket_lock()
-{
-  int my_num = next_num.fetch_add(1);
-  while(now_serving.load() != my_num)
-  {}
-}
-
-void ticket_unlock()
-{
-  now_serving.fetch_add(1);
-}
-
-int getMax(int a[], int n)
+int getMax(int a[])
 {
   int max = 0;
-  for(int i=0;i<n;i++)
+  for(int i=0;i<500000;i++)
     if(a[i]>max)
       max = a[i];
 
@@ -262,8 +147,8 @@ void* merge_sort(void* arg)
 
 void bucket_sort(int start,int n)
 {
-  cout<<"pika";
-  int max = getMax(a, n);
+
+  int max = getMax(a);
 
   int divider = ceil(float(max+1)/num_threads);
 
@@ -271,47 +156,18 @@ void bucket_sort(int start,int n)
   {
 
     int x = floor( a[i] / divider);
-
-    if(TEST_NUM == 1)
-    {
-      tas_lock();
-      b[x].insert(a[i]);
-      tas_unlock();
-    }
-    else if(TEST_NUM == 2)
-    {
-      ttas_lock();
-      b[x].insert(a[i]);
-      ttas_unlock();
-    }
-    else if(TEST_NUM == 3)
-    {
-      ticket_lock();
-      b[x].insert(a[i]);
-      ticket_unlock();
-    }
-    else if(TEST_NUM == 4)
-    {
-      Node* myNode = new(Node);
-      mcs_lock.acquire(myNode);
-      b[x].insert(a[i]);
-      mcs_lock.release(myNode);
-      free(myNode);
-    }
-    else
-    {
-      insert_lock.lock();
-      b[x].insert(a[i]);
-      insert_lock.unlock();
-    }
-
+    insert_lock.lock();
+    b[x].insert(a[i]);
+    insert_lock.unlock();
   }
 }
 
 
 void* bucket_sort(void* arg)
 {
+  part_lock.lock();
   int thread_part = part++;
+  part_lock.unlock();
 
   int left = thread_part * (size/num_threads);
   int right = (thread_part + 1) * (size/num_threads) - 1;
@@ -343,13 +199,6 @@ int main(int argc, char **argv)
   {
 
 
-    if(strcmp(argv[i],"--name") == 0)
-    {
-      //printf("Sharanjeet Singh Mago\n");
-      cout<<"Sharanjeet Singh Mago\n";
-      return 0;
-    }
-
     if(i+1 != argc)
     {
       if(strcmp(argv[i],"-o") == 0)
@@ -368,6 +217,13 @@ int main(int argc, char **argv)
       }
     }
 
+    if(strcmp(argv[i],"--name") == 0)
+    {
+      //printf("Sharanjeet Singh Mago\n");
+      cout<<"Sharanjeet Singh Mago\n";
+      return 0;
+    }
+
     if(strcmp(argv[i],"--alg=fj") == 0)
     {
       fj=1;
@@ -383,49 +239,10 @@ int main(int argc, char **argv)
 
       cout<<"\n\n Bucket Sort using Multithreading\n";
     }
-
-    if(strcmp(argv[i],"--lock=tas") == 0)
-    {
-      TEST_NUM = 1;
-    }
-
-    if(strcmp(argv[i],"--lock=ttas") == 0)
-    {
-      TEST_NUM = 2;
-    }
-
-    if(strcmp(argv[i],"--lock=ticket") == 0)
-    {
-      TEST_NUM = 3;
-    }
-
-    if(strcmp(argv[i],"--lock=mcs") == 0)
-    {
-      TEST_NUM = 4;
-    }
-
-    if(strcmp(argv[i],"--lock=pthread") == 0)
-    {
-      TEST_NUM = 5;
-    }
-
-    if(strcmp(argv[i],"--bar=sense") == 0)
-    {
-      TEST_NUM = 6;
-    }
-
-    if(strcmp(argv[i],"--bar=pthread") == 0)
-    {
-      TEST_NUM = 7;
-    }
   }
 
 
-
   cout<<endl;
-
-  next_num = 0;
-  now_serving = 0;
 
   FILE *f;
 
@@ -562,8 +379,6 @@ int main(int argc, char **argv)
 
   cout << "Time taken merging: " << (t4 - t3) /
       (double)CLOCKS_PER_SEC << endl;
-
-  cout<<endl;    
 
   cout << "Time taken total: " << (t4 - t1) /
       (double)CLOCKS_PER_SEC << endl;
