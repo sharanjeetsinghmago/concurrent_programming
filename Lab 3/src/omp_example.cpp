@@ -27,11 +27,11 @@ int main(int argc, char *argv[])
 
 
 
-  #pragma omp parallel private(tid)
-  {
+  #pragma omp parallel
+{
 
 
-    tid = omp_get_thread_num();
+  //  tid = omp_get_thread_num();
     //cout <<tid<<endl;
 
 
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     //   nthreads = omp_get_num_threads();
     //   cout<<" Number of threads = "<<nthreads<<endl;
     // }
-  }
+}
 
   for(int i=0;i<10000;i++)
   {

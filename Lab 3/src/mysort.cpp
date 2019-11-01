@@ -7,12 +7,15 @@
 #include <set>
 #include <cmath>
 #include <mutex>
+#include <omp.h>
+
+# define MAX 500000
 
 using namespace std;
 
 int part=0;
 
-int a[500000];
+int a[MAX];
 
 vector<multiset<int>> b;
 
@@ -31,7 +34,7 @@ bool bucket=0;
 int getMax(int a[], int n)
 {
   int max = 0;
-  for(int i=0;i<n;i++)
+  for(int i=0;i<MAX;i++)
     if(a[i]>max)
       max = a[i];
 
@@ -145,42 +148,8 @@ void* merge_sort(void* arg)
 
 }
 
-void bucket_sort(int start,int n)
-{
-
-  int max = getMax(a, n);
-
-  int divider = ceil(float(max+1)/num_threads);
-
-  for (int i=start;i<=n;i++)
-  {
-
-    int x = floor( a[i] / divider);
-    insert_lock.lock();
-    b[x].insert(a[i]);
-    insert_lock.unlock();
-  }
-}
 
 
-void* bucket_sort(void* arg)
-{
-  part_lock.lock();
-  int thread_part = part++;
-  part_lock.unlock();
-
-  int left = thread_part * (size/num_threads);
-  int right = (thread_part + 1) * (size/num_threads) - 1;
-
-  if(thread_part == num_threads-1)
-  {
-    right = size-1;
-  }
-
-
-  bucket_sort(left,right);
-
-}
 
 
 int main(int argc, char **argv)
@@ -289,51 +258,72 @@ int main(int argc, char **argv)
   // Sorting code starts here
 
   t1 = clock();
-  pthread_t threads[num_threads];
+  // pthread_t threads[num_threads];
+  //
+  // for(int i=0; i < num_threads; i++)
+  // {
+  //   if(fj)
+  //   {
+  //     pthread_create(&threads[i], NULL, merge_sort, (void*)NULL);
+  //   }
+  //   else if(bucket)
+  //   {
+  //     pthread_create(&threads[i], NULL, bucket_sort, (void*)NULL);
+  //   }
+  // }
 
-  for(int i=0; i < num_threads; i++)
+
+  #pragma omp parallel sections
   {
-    if(fj)
+    #pragma omp section
     {
-      pthread_create(&threads[i], NULL, merge_sort, (void*)NULL);
+
+      cout<<"\n Section 1 ID :"<<omp_get_thread_num();
+
+      merge_sort(0,(size/2)-1);
     }
-    else if(bucket)
+    #pragma omp section
     {
-      pthread_create(&threads[i], NULL, bucket_sort, (void*)NULL);
+
+      cout<<"\n Section 2 ID :"<<omp_get_thread_num();
+
+      merge_sort(size/2,size-1);
     }
   }
+
+  merge(0,(size/2)-1,size-1);
 
 
   t2 = clock();
-
-  for (int i=0; i<num_threads; i++)
-  {
-    pthread_join(threads[i], NULL);
-  }
+  //
+  // for (int i=0; i<num_threads; i++)
+  // {
+  //   pthread_join(threads[i], NULL);
+  // }
 
   t3 = clock();
 
-  if(fj)
-  {
-    for(int i=0;i<num_threads-1;i++)
-    {
-      merge(0,(i*(size/num_threads))-1,((i+1)*(size/num_threads))-1);
-    }
-
-    i=num_threads-1;
-    merge(0,(i*(size/num_threads))-1,size-1);
-  }
-  else if(bucket)
-  {
-    int index = 0;
-    for(int i=0; i<n; i++)
-    {
-      for(multiset<int>::iterator j = b[i].begin(); j!= b[i].end(); j++)
-      {
-        a[index++] = *j;
-      }
-    }
-  }
+  // if(fj)
+  // {
+  //   for(int i=0;i<num_threads-1;i++)
+  //   {
+  //     merge(0,(i*(size/num_threads))-1,((i+1)*(size/num_threads))-1);
+  //   }
+  //
+  //   i=num_threads-1;
+  //   merge(0,(i*(size/num_threads))-1,size-1);
+  // }
+  // else if(bucket)
+  // {
+  //   int index = 0;
+  //   for(int i=0; i<n; i++)
+  //   {
+  //     for(multiset<int>::iterator j = b[i].begin(); j!= b[i].end(); j++)
+  //     {
+  //       a[index++] = *j;
+  //     }
+  //   }
+  // }
 
   t4 = clock();
 
@@ -366,21 +356,22 @@ int main(int argc, char **argv)
   }
 
 
-  cout << endl << endl << "Number of threads : " << num_threads << endl << endl;
+
+//  cout << endl << endl << "Number of threads : " << num_threads << endl << endl;
   // time taken by merge sort in seconds
-  cout << "Time taken for fork: " << (t2 - t1) /
-      (double)CLOCKS_PER_SEC << endl;
+  // cout << "Time taken for fork: " << (t2 - t1) /
+  //     (double)CLOCKS_PER_SEC << endl;
+  //
+  // cout << "Time taken for joining: " << (t3 - t2) /
+  //     (double)CLOCKS_PER_SEC << endl;
+  //
+  // cout << "Time taken for fork and join: " << (t3 - t1) /
+  //     (double)CLOCKS_PER_SEC << endl;
+  //
+  // cout << "Time taken merging: " << (t4 - t3) /
+  //     (double)CLOCKS_PER_SEC << endl;
 
-  cout << "Time taken for joining: " << (t3 - t2) /
-      (double)CLOCKS_PER_SEC << endl;
-
-  cout << "Time taken for fork and join: " << (t3 - t1) /
-      (double)CLOCKS_PER_SEC << endl;
-
-  cout << "Time taken merging: " << (t4 - t3) /
-      (double)CLOCKS_PER_SEC << endl;
-
-  cout << "Time taken total: " << (t4 - t1) /
+  cout << "\n Time taken total: " << (t2 - t1) /
       (double)CLOCKS_PER_SEC << endl;
 
 

@@ -3,7 +3,7 @@ all: sort
 .PHONY : all
 
 sort: mysort.cpp
-	g++ -pthread mysort.cpp -o mysort
+	g++ mysort.cpp -fopenmp -o mysort
 
 counter: counter.cpp
 	g++ -pthread counter.cpp -o counter
