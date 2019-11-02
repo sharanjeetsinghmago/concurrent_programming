@@ -13,7 +13,7 @@
 
 using namespace std;
 
-int part=0;
+//int part=0;
 
 int a[MAX];
 
@@ -21,7 +21,7 @@ vector<multiset<int>> b;
 
 int size = 40;
 
-int num_threads = 6;
+//int num_threads = 6;
 
 mutex insert_lock;
 
@@ -124,30 +124,49 @@ void merge_sort(int left, int right)
 }
 
 
-void* merge_sort(void* arg)
+void merging(int num_threads)
 {
-  part_lock.lock();
-  int thread_part = part++;
-  part_lock.unlock();
 
-  int left = thread_part * (size/num_threads);
-  int right = (thread_part + 1) * (size/num_threads) - 1;
 
-  if(thread_part == num_threads-1)
-  {
-    right = size-1;
-  }
+    cout<<"\n num  = "<<num_threads;
 
-  int mid = left + (right - left) / 2;
-  if(left < right)
-  {
-    merge_sort(left, mid);
-    merge_sort(mid + 1, right);
-    merge(left, mid, right);
-  }
+    int thread_part = 0;
+
+    for(int i=0;i<num_threads;i++)
+    {
+
+      int left = thread_part * (size/num_threads);
+      int right = (thread_part + 1) * (size/num_threads) - 1;
+
+      if(size%num_threads != 0 && i==(num_threads-1))
+      {
+        right= size-1;
+      }
+
+      merge_sort(left,right);
+      thread_part++;
+    }
+
+    int a,b;
+
+    for(int i=1;i<num_threads;i++)
+    {
+
+      a = (i*(size/num_threads))-1;
+
+      b = ((i+1)*(size/num_threads))-1;
+
+
+      if(size%num_threads != 0 && i==(num_threads-1))
+      {
+        b= size-1;
+      }
+
+
+      merge(0,a,b);
+    }
 
 }
-
 
 
 
@@ -177,14 +196,6 @@ int main(int argc, char **argv)
       }
     }
 
-    if(i+1 != argc)
-    {
-      if(strcmp(argv[i],"-t") == 0)
-      {
-        num_threads = atoi(argv[i+1]);
-        i++;
-      }
-    }
 
     if(strcmp(argv[i],"--name") == 0)
     {
@@ -255,80 +266,23 @@ int main(int argc, char **argv)
 
   b.resize(n);
 
-  // Sorting code starts here
 
   t1 = clock();
-  // pthread_t threads[num_threads];
-  //
-  // for(int i=0; i < num_threads; i++)
-  // {
-  //   if(fj)
-  //   {
-  //     pthread_create(&threads[i], NULL, merge_sort, (void*)NULL);
-  //   }
-  //   else if(bucket)
-  //   {
-  //     pthread_create(&threads[i], NULL, bucket_sort, (void*)NULL);
-  //   }
-  // }
 
 
-  #pragma omp parallel sections
-  {
-    #pragma omp section
-    {
+  #pragma omp parallel
+   {
 
-      cout<<"\n Section 1 ID :"<<omp_get_thread_num();
+     #pragma omp single
+     {
+       merging(omp_get_num_threads());
+     }
 
-      merge_sort(0,(size/2)-1);
-    }
-    #pragma omp section
-    {
-
-      cout<<"\n Section 2 ID :"<<omp_get_thread_num();
-
-      merge_sort(size/2,size-1);
-    }
   }
 
-  merge(0,(size/2)-1,size-1);
 
 
   t2 = clock();
-  //
-  // for (int i=0; i<num_threads; i++)
-  // {
-  //   pthread_join(threads[i], NULL);
-  // }
-
-  t3 = clock();
-
-  // if(fj)
-  // {
-  //   for(int i=0;i<num_threads-1;i++)
-  //   {
-  //     merge(0,(i*(size/num_threads))-1,((i+1)*(size/num_threads))-1);
-  //   }
-  //
-  //   i=num_threads-1;
-  //   merge(0,(i*(size/num_threads))-1,size-1);
-  // }
-  // else if(bucket)
-  // {
-  //   int index = 0;
-  //   for(int i=0; i<n; i++)
-  //   {
-  //     for(multiset<int>::iterator j = b[i].begin(); j!= b[i].end(); j++)
-  //     {
-  //       a[index++] = *j;
-  //     }
-  //   }
-  // }
-
-  t4 = clock();
-
-
-  // Sorting code ends here
 
   f = fopen(out_file, "w");
 
@@ -356,20 +310,6 @@ int main(int argc, char **argv)
   }
 
 
-
-//  cout << endl << endl << "Number of threads : " << num_threads << endl << endl;
-  // time taken by merge sort in seconds
-  // cout << "Time taken for fork: " << (t2 - t1) /
-  //     (double)CLOCKS_PER_SEC << endl;
-  //
-  // cout << "Time taken for joining: " << (t3 - t2) /
-  //     (double)CLOCKS_PER_SEC << endl;
-  //
-  // cout << "Time taken for fork and join: " << (t3 - t1) /
-  //     (double)CLOCKS_PER_SEC << endl;
-  //
-  // cout << "Time taken merging: " << (t4 - t3) /
-  //     (double)CLOCKS_PER_SEC << endl;
 
   cout << "\n Time taken total: " << (t2 - t1) /
       (double)CLOCKS_PER_SEC << endl;
