@@ -271,10 +271,11 @@ int main(int argc, char **argv)
 
 
   #pragma omp parallel
-   {
+  {
 
      #pragma omp single
      {
+
        merging(omp_get_num_threads());
      }
 
