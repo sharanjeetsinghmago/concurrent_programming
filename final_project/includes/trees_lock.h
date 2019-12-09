@@ -20,6 +20,8 @@ class Node
   pthread_mutex_t lock;
 };
 
+void range(Node* root, int start, int end);
+
 void inOrder(Node *root);
 
 void* thread_func(void*);

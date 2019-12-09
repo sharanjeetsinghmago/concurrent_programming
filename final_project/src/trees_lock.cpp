@@ -12,9 +12,10 @@ extern Node *groot;
 
 extern ofstream out_file;
 
-int r_max = 50;
+int r_min = 0;
 
-int r_min = 41;
+int r_max = MAX_KEY;
+
 
 Node* getNewNode(int key, int value)
 {
@@ -37,9 +38,9 @@ void inOrder(Node *root)
 
     if( (root->key >= r_min) && (root->key <= r_max) )
     {
-    out_file << endl << " " << setw(5) << root->key << " : " << root->value << " ";
+      out_file << endl << " " << setw(5) << root->key << " : " << root->value << " ";
 
-    // cout << " " << root->key << ":" << root->value << " ";
+      cout << " " << root->key << ":" << root->value << " ";
     }
     inOrder(root->right);
   }
@@ -159,6 +160,73 @@ void get(Node* root, int key)
   }
 }
 
+void range(Node* root, int start, int end)
+{
+  if(root == groot)
+  {
+    pthread_mutex_lock(&tree_lock);
+    if(groot == NULL)
+    {
+      pthread_mutex_unlock(&tree_lock);
+      return;
+    }
+    else
+    {
+      pthread_mutex_lock(&groot->lock);
+      root = groot;
+      pthread_mutex_unlock(&tree_lock);
+    }
+  }
+
+  cout<<"\nhere | start:"<<start<<" end:"<<end<<" key:"<<root->key<<"\n";
+
+  if(start > root->key)
+  {
+    if(root->left == NULL)
+    {
+      cout<<"\nroot->left == NULL";
+      pthread_mutex_unlock(&root->lock);
+      return;
+    }
+    else
+    {
+      cout<<"\nroot->left != NULL";
+      pthread_mutex_lock(&root->left->lock);
+      pthread_mutex_unlock(&root->lock);
+      range(root->left, start, end);
+    }
+  }
+
+  if( (root->key >=start) && (root->key <= end))
+  {
+
+    cout<<"\n In Range";
+    out_file << endl << " " << setw(5) << root->key << " : " << root->value << " ";
+
+    cout << " " << root->key << ":" << root->value << " ";
+
+    pthread_mutex_unlock(&root->lock);
+  }
+
+  if(end < root->key)
+  {
+    if(root->right == NULL)
+    {
+      cout<<"\n root->right == NULL)";
+      pthread_mutex_unlock(&root->lock);
+      return;
+    }
+    else
+    {
+      cout<<"\n root->right != NULL)";
+      pthread_mutex_lock(&root->right->lock);
+      pthread_mutex_unlock(&root->lock);
+      range(root->right, start, end);
+    }
+  }
+}
+
+
 void* thread_func(void*)
 {
 
@@ -167,7 +235,7 @@ void* thread_func(void*)
     int a = rand()%MAX_KEY;
     int b = rand()%MAX_VALUE;
 
-    //cout<<"\n\n puting Key:"<<a<<" Value:"<<b<<"\n\n";
+    cout<<"\n\n puting Key:"<<a<<" Value:"<<b<<"\n\n";
 
     put(groot, a, b, 1);
 

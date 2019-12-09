@@ -52,9 +52,13 @@ int main()
 
   cout<<"\n In order traversal of tree => ";
 
-  inOrder(groot);
+  //inOrder(groot);
+
+  range(groot, 0, MAX_KEY);
 
   cout<<endl;
+
+
 
   return 0;
 }
