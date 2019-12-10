@@ -4,7 +4,7 @@ using namespace std;
 
 int num_iterations = 10;
 
-pthread_mutex_t tree_lock;
+pthread_rwlock_t tree_lock;
 
 Node *groot;
 
@@ -26,7 +26,7 @@ Node* getNewNode(int key, int value)
   newNode->value = value;
   newNode->left = NULL;
   newNode->right = NULL;
-  pthread_mutex_init(&newNode->lock,NULL);
+  pthread_rwlock_init(&newNode->lock,NULL);
 
   return newNode;
 }
@@ -51,18 +51,18 @@ void put(Node* root, int key, int value)
 {
   if(root == groot)
   {
-    pthread_mutex_lock(&tree_lock);
+    pthread_rwlock_wrlock(&tree_lock);
     if(groot == NULL)
     {
       groot = getNewNode(key,value);
-      pthread_mutex_unlock(&tree_lock);
+      pthread_rwlock_unlock(&tree_lock);
       return;
     }
     else
     {
-      pthread_mutex_lock(&groot->lock);
+      pthread_rwlock_wrlock(&groot->lock);
       root = groot;
-      pthread_mutex_unlock(&tree_lock);
+      pthread_rwlock_unlock(&tree_lock);
     }
   }
 
@@ -72,12 +72,12 @@ void put(Node* root, int key, int value)
     if(root->left == NULL)
     {
       root->left = getNewNode(key, value);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_unlock(&root->lock);
     }
     else
     {
-      pthread_mutex_lock(&root->left->lock);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_wrlock(&root->left->lock);
+      pthread_rwlock_unlock(&root->lock);
       put(root->left, key, value);
     }
   }
@@ -86,12 +86,12 @@ void put(Node* root, int key, int value)
     if(root->right == NULL)
     {
       root->right = getNewNode(key, value);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_unlock(&root->lock);
     }
     else
     {
-      pthread_mutex_lock(&root->right->lock);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_wrlock(&root->right->lock);
+      pthread_rwlock_unlock(&root->lock);
       put(root->right, key, value);
     }
 
@@ -99,28 +99,28 @@ void put(Node* root, int key, int value)
   else
   {
     //cout<<"\n Entry with same key already exists!!!";
-    pthread_mutex_unlock(&root->lock);
+    pthread_rwlock_unlock(&root->lock);
   }
 
 }
 
 
-Node* get(Node* root, int key)
+void get(Node* root, int key)
 {
   if(root == groot)
   {
-    pthread_mutex_lock(&tree_lock);
+    pthread_rwlock_rdlock(&tree_lock);
     if(groot == NULL)
     {
       cout<<"\n Search failed for Key:"<<key<<" !!!";
-      pthread_mutex_unlock(&tree_lock);
-      return NULL;
+      pthread_rwlock_unlock(&tree_lock);
+      return;
     }
     else
     {
-      pthread_mutex_lock(&groot->lock);
+      pthread_rwlock_rdlock(&groot->lock);
       root = groot;
-      pthread_mutex_unlock(&tree_lock);
+      pthread_rwlock_unlock(&tree_lock);
     }
   }
 
@@ -130,13 +130,13 @@ Node* get(Node* root, int key)
     if(root->left == NULL)
     {
       cout<<"\n Search failed for Key:"<<key<<" !!!";
-      pthread_mutex_unlock(&root->lock);
-      return NULL;
+      pthread_rwlock_unlock(&root->lock);
+      return;
     }
     else
     {
-      pthread_mutex_lock(&root->left->lock);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_rdlock(&root->left->lock);
+      pthread_rwlock_unlock(&root->lock);
       get(root->left, key);
     }
   }
@@ -145,20 +145,19 @@ Node* get(Node* root, int key)
     if(root->right == NULL)
     {
       cout<<"\n Search failed for Key:"<<key<<" !!!";
-      pthread_mutex_unlock(&root->lock);
-      return NULL;
+      pthread_rwlock_unlock(&root->lock);
+      return;
     }
     else
     {
-      pthread_mutex_lock(&root->right->lock);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_rdlock(&root->right->lock);
+      pthread_rwlock_unlock(&root->lock);
       get(root->right, key);
     }
   }
   else
   {
-    pthread_mutex_unlock(&root->lock);
-    return root;
+    pthread_rwlock_unlock(&root->lock);
   }
 }
 
@@ -166,17 +165,17 @@ void range(Node* root, int start, int end)
 {
   if(root == groot)
   {
-    pthread_mutex_lock(&tree_lock);
+    pthread_rwlock_rdlock(&tree_lock);
     if(groot == NULL)
     {
-      pthread_mutex_unlock(&tree_lock);
+      pthread_rwlock_unlock(&tree_lock);
       return;
     }
     else
     {
-      pthread_mutex_lock(&groot->lock);
+      pthread_rwlock_rdlock(&groot->lock);
       root = groot;
-      pthread_mutex_unlock(&tree_lock);
+      pthread_rwlock_unlock(&tree_lock);
     }
   }
 
@@ -188,10 +187,10 @@ void range(Node* root, int start, int end)
     }
     else
     {
-      pthread_mutex_lock(&root->left->lock);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_rdlock(&root->left->lock);
+      pthread_rwlock_unlock(&root->lock);
       range(root->left, start, end);
-      pthread_mutex_lock(&root->lock);
+      pthread_rwlock_rdlock(&root->lock);
     }
   }
 
@@ -201,7 +200,7 @@ void range(Node* root, int start, int end)
 
     // cout << " " << root->key << ":" << root->value << " ";
 
-    pthread_mutex_unlock(&root->lock);
+    pthread_rwlock_unlock(&root->lock);
   }
 
   if(end > root->key)
@@ -212,10 +211,10 @@ void range(Node* root, int start, int end)
     }
     else
     {
-      pthread_mutex_lock(&root->right->lock);
-      pthread_mutex_unlock(&root->lock);
+      pthread_rwlock_rdlock(&root->right->lock);
+      pthread_rwlock_unlock(&root->lock);
       range(root->right, start, end);
-      pthread_mutex_lock(&root->lock);
+      pthread_rwlock_rdlock(&root->lock);
     }
   }
 }

@@ -7,15 +7,38 @@ extern Node* groot;
 
 void test_put()
 {
-  cout<<"\n Testing put function";
-  put(groot, 50, 100);
+
+  cout<<"\n Inserting keys from 1 to 10";
+  for(int i=1;i<=10;i++)
+  {
+    put(groot, i, 100);
+  }
 }
 
-void test_get()
+bool test_get()
 {
-  cout<<"\n Testing get function";
-  get(groot,25);
-  get(groot,50);
+
+  cout<<"\n Getting nodes for keys from 1 to 10";
+  for(int i=1;i<=10;i++)
+  {
+    // get should be able to find the nodes with these keys
+    if(get(groot,i) == NULL)
+    {
+      return 0;
+    }
+  }
+
+  cout<<"\n Getting nodes for keys from 11 to 20";
+  for(int i=11;i<=20;i++)
+  {
+    // get should not be able to find the nodes with these keys
+    if(get(groot,i) != NULL)
+    {
+      return 0;
+    }
+  }
+
+  return 1;
 }
 
 int main()
@@ -24,8 +47,17 @@ int main()
 
   groot = NULL;
 
+  cout<<"\n Testing put and get functions!!!";
+
   test_put();
-  test_get();
+  if(test_get())
+  {
+    cout<<"\n\n <<<Put and Get tests passed>>>";
+  }
+  else
+  {
+    cout<<"\n Put and Get tests failed!!!";
+  }
 
   cout<<endl;
 

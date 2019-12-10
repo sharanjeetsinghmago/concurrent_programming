@@ -9,4 +9,4 @@ test:	unit_test.cpp	trees_lock.cpp
 	$(CC) $(CFLAGS) unit_test.cpp trees_lock.cpp -o utest
 
 clean:
-	rm contree
+	rm contree utest	

@@ -19,7 +19,7 @@ class Node
 
 void put(Node* root, int key, int value);
 
-void get(Node* root, int key);
+Node* get(Node* root, int key);
 
 void range(Node* root, int start, int end);
 
