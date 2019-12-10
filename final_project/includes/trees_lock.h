@@ -6,9 +6,6 @@
 #ifndef TREES_LOCK_H
 #define TREES_LOCK_H
 
-#define MAX_KEY 100
-#define MAX_VALUE 1000000
-
 class Node
 {
   public:
@@ -19,6 +16,10 @@ class Node
   Node* right;
   pthread_mutex_t lock;
 };
+
+void put(Node* root, int key, int value);
+
+void get(Node* root, int key);
 
 void range(Node* root, int start, int end);
 

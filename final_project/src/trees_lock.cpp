@@ -2,20 +2,21 @@
 
 using namespace std;
 
-extern int num_threads;
+int num_iterations = 10;
 
-extern int num_iterations;
+pthread_mutex_t tree_lock;
 
-extern pthread_mutex_t tree_lock;
+Node *groot;
 
-extern Node *groot;
+ofstream out_file;
 
-extern ofstream out_file;
+int MAX_KEY = 100000;
 
-extern int r_min;
+int MAX_VALUE = 1000000;
 
-extern int r_max;
+int r_min = 0;
 
+int r_max = MAX_KEY;
 
 Node* getNewNode(int key, int value)
 {
@@ -46,7 +47,7 @@ void inOrder(Node *root)
   }
 }
 
-void put(Node* root, int key, int value, int thread_num)
+void put(Node* root, int key, int value)
 {
   if(root == groot)
   {
@@ -77,7 +78,7 @@ void put(Node* root, int key, int value, int thread_num)
     {
       pthread_mutex_lock(&root->left->lock);
       pthread_mutex_unlock(&root->lock);
-      put(root->left, key, value, thread_num);
+      put(root->left, key, value);
     }
   }
   else if(key > root->key)
@@ -91,7 +92,7 @@ void put(Node* root, int key, int value, int thread_num)
     {
       pthread_mutex_lock(&root->right->lock);
       pthread_mutex_unlock(&root->lock);
-      put(root->right, key, value, thread_num);
+      put(root->right, key, value);
     }
 
   }
@@ -178,50 +179,42 @@ void range(Node* root, int start, int end)
     }
   }
 
-  cout<<"\nhere | start:"<<start<<" end:"<<end<<" key:"<<root->key<<"\n";
-
-  if(1)
+  if(start < root->key)
   {
     if(root->left == NULL)
     {
-      cout<<"\nroot->left == NULL";
-      pthread_mutex_unlock(&root->lock);
-      return;
+      //blank
     }
     else
     {
-      cout<<"\nroot->left != NULL";
       pthread_mutex_lock(&root->left->lock);
       pthread_mutex_unlock(&root->lock);
       range(root->left, start, end);
+      pthread_mutex_lock(&root->lock);
     }
   }
 
-  if(( (root->key >=start) && (root->key <= end) )|| 1)
+  if( (root->key >=start) && (root->key <= end) )
   {
-
-    cout<<"\n In Range";
     out_file << endl << " " << setw(5) << root->key << " : " << root->value << " ";
 
-    cout << " " << root->key << ":" << root->value << " ";
+    // cout << " " << root->key << ":" << root->value << " ";
 
     pthread_mutex_unlock(&root->lock);
   }
 
-  if(1)
+  if(end > root->key)
   {
     if(root->right == NULL)
     {
-      cout<<"\n root->right == NULL)";
-      pthread_mutex_unlock(&root->lock);
-      return;
+      //blank
     }
     else
     {
-      cout<<"\n root->right != NULL)";
       pthread_mutex_lock(&root->right->lock);
       pthread_mutex_unlock(&root->lock);
       range(root->right, start, end);
+      pthread_mutex_lock(&root->lock);
     }
   }
 }
@@ -230,14 +223,14 @@ void range(Node* root, int start, int end)
 void* thread_func(void*)
 {
 
+
+
   for(int i=0;i<num_iterations;i++)
   {
     int a = rand()%MAX_KEY;
     int b = rand()%MAX_VALUE;
 
-    // cout<<"\n\n puting Key:"<<a<<" Value:"<<b<<"\n\n";
-
-    put(groot, a, b, 1);
+    put(groot, a, b);
 
     get(groot,a);
 
