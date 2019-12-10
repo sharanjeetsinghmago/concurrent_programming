@@ -12,9 +12,9 @@ extern Node *groot;
 
 extern ofstream out_file;
 
-int r_min = 0;
+extern int r_min;
 
-int r_max = MAX_KEY;
+extern int r_max;
 
 
 Node* getNewNode(int key, int value)
@@ -40,7 +40,7 @@ void inOrder(Node *root)
     {
       out_file << endl << " " << setw(5) << root->key << " : " << root->value << " ";
 
-      cout << " " << root->key << ":" << root->value << " ";
+      // cout << " " << root->key << ":" << root->value << " ";
     }
     inOrder(root->right);
   }
@@ -180,7 +180,7 @@ void range(Node* root, int start, int end)
 
   cout<<"\nhere | start:"<<start<<" end:"<<end<<" key:"<<root->key<<"\n";
 
-  if(start > root->key)
+  if(1)
   {
     if(root->left == NULL)
     {
@@ -197,7 +197,7 @@ void range(Node* root, int start, int end)
     }
   }
 
-  if( (root->key >=start) && (root->key <= end))
+  if(( (root->key >=start) && (root->key <= end) )|| 1)
   {
 
     cout<<"\n In Range";
@@ -208,7 +208,7 @@ void range(Node* root, int start, int end)
     pthread_mutex_unlock(&root->lock);
   }
 
-  if(end < root->key)
+  if(1)
   {
     if(root->right == NULL)
     {
@@ -235,7 +235,7 @@ void* thread_func(void*)
     int a = rand()%MAX_KEY;
     int b = rand()%MAX_VALUE;
 
-    cout<<"\n\n puting Key:"<<a<<" Value:"<<b<<"\n\n";
+    // cout<<"\n\n puting Key:"<<a<<" Value:"<<b<<"\n\n";
 
     put(groot, a, b, 1);
 
